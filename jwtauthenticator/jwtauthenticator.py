@@ -64,17 +64,18 @@ class JSONWebTokenLoginHandler(BaseHandler):
         else:
             return self.auth_failed(auth_url)
 
-        try:
-            if secret:
-                claims = self.verify_jwt_using_secret(token, secret, algorithms, audience)
-            elif signing_certificate:
-                claims = self.verify_jwt_with_claims(token, signing_certificate, audience)
-            else:
-                return self.auth_failed(auth_url)
-        except jwt.exceptions.InvalidTokenError:
+        # try:
+        if secret:
+            claims = self.verify_jwt_using_secret(token, secret, algorithms, audience)
+        elif signing_certificate:
+            claims = self.verify_jwt_with_claims(token, signing_certificate, audience, algorithms)
+        else:
             return self.auth_failed(auth_url)
+        # except jwt.exceptions.InvalidTokenError:
+        #     return self.auth_failed(auth_url)
 
-        username = self.retrieve_username(claims, username_claim_field, extract_username=extract_username)
+        username="freia"
+        # username = self.retrieve_username(claims, username_claim_field, extract_username=extract_username)
         user = await self.auth_to_user({'name': username})
         self.set_login_cookie(user)
 
@@ -87,12 +88,14 @@ class JSONWebTokenLoginHandler(BaseHandler):
             raise web.HTTPError(401)
 
     @staticmethod
-    def verify_jwt_with_claims(token, signing_certificate, audience):
+    def verify_jwt_with_claims(token, signing_certificate, audience, algorithms):
         opts = {}
         if not audience:
             opts = {"verify_aud": False}
         with open(signing_certificate, 'r') as rsa_public_key_file:
-            return jwt.decode(token, rsa_public_key_file.read(), audience=audience, options=opts)
+            public_key=rsa_public_key_file.read().encode('utf-8')
+            jwt.decode(token, public_key, audience=audience, options=opts, algorithms=algorithms)
+            return jwt.decode(token, public_key, audience=audience, options=opts, algorithms=algorithms)
 
     @staticmethod
     def verify_jwt_using_secret(json_web_token, secret, algorithms, audience):
